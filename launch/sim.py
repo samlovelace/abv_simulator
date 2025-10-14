@@ -1,9 +1,11 @@
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess
 from launch_ros.actions import Node
+from launch.actions import SetEnvironmentVariable
 
 def generate_launch_description():
     return LaunchDescription([
+        SetEnvironmentVariable('PYTHONUNBUFFERED', '1'),
         # Launch executable from the first package
         Node(
             package='abv_comms',  # Replace with the actual package name
