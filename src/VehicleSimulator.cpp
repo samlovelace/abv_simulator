@@ -2,6 +2,7 @@
 #include "abv_simulator/VehicleSimulator.h"
 #include "abv_simulator/RosTopicManager.h"
 #include "robot_idl/msg/abv_state.hpp"
+#include <string> 
 
 
 VehicleSimulator::VehicleSimulator(/* args */) : 
@@ -20,7 +21,7 @@ VehicleSimulator::~VehicleSimulator()
 void VehicleSimulator::listen()
 {
     mUdpServer->start(); 
-    mTopicManager->createPublisher<robot_idl::msg::AbvState>("abv_state_simulated"); 
+    mTopicManager->createPublisher<robot_idl::msg::AbvState>("abv/sim/state"); 
     mTopicManager->spinNode(); 
 }
 
@@ -44,7 +45,7 @@ void VehicleSimulator::update()
 
     mVehicleState = {mPose(0), mPose(1), mPose(2), mVelocity(0), mVelocity(1), mVelocity(2)};
 
-    mTopicManager->publishMessage<robot_idl::msg::AbvState>("abv_state_simulated", convertToIdl(mVehicleState)); 
+    mTopicManager->publishMessage<robot_idl::msg::AbvState>("abv/sim/state", convertToIdl(mVehicleState)); 
     
 }
 
@@ -78,110 +79,110 @@ void VehicleSimulator::convertThrusterCommandToForce(const std::string& thruster
 
     mThrustForce = Eigen::Vector3d::Zero(); // Default case
 
-    if (thrusterCommand == "900000011") {
+    if (thrusterCommand == "00000011") {
         mThrustForce = Eigen::Vector3d(2*mThrusterForce, 0, 0); // +x
     } 
-    else if (thrusterCommand == "900110000") 
+    else if (thrusterCommand == "00110000") 
     {
         mThrustForce = Eigen::Vector3d(-2*mThrusterForce, 0, 0); // -x
     } 
-    else if (thrusterCommand == "911000000") // +y 
+    else if (thrusterCommand == "11000000") // +y 
     {
         mThrustForce = Eigen::Vector3d(0, 2*mThrusterForce, 0);
     } 
-    else if (thrusterCommand == "900001100") // -y  
+    else if (thrusterCommand == "00001100") // -y  
     {
         mThrustForce = Eigen::Vector3d(0, -2*mThrusterForce, 0);
     } 
-    else if (thrusterCommand == "901000100") // +phi  
+    else if (thrusterCommand == "01000100") // +phi  
     {
         mThrustForce = Eigen::Vector3d(0, 0, 2*mThrusterForce*mMomentArm); 
     } 
-    else if (thrusterCommand == "910001000") // -phi
+    else if (thrusterCommand == "10001000") // -phi
     {
         mThrustForce = Eigen::Vector3d(0, 0, -2*mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "901000010") // +x, +y
+    else if (thrusterCommand == "01000010") // +x, +y
     {
         mThrustForce = Eigen::Vector3d(mThrusterForce, mThrusterForce, 0);
     } 
-    else if (thrusterCommand == "900001001") // +x, -y
+    else if (thrusterCommand == "00001001") // +x, -y
     {
         mThrustForce = Eigen::Vector3d(mThrusterForce, -mThrusterForce, 0);
     } 
-    else if (thrusterCommand == "910010000") // -x, +y
+    else if (thrusterCommand == "10010000") // -x, +y
     {
         mThrustForce = Eigen::Vector3d(-mThrusterForce, mThrusterForce, 0); 
     } 
-    else if (thrusterCommand == "900100100") // -x, -y
+    else if (thrusterCommand == "00100100") // -x, -y
     {
         mThrustForce = Eigen::Vector3d(-mThrusterForce, -mThrusterForce, 0);
     } 
-    else if (thrusterCommand == "900000001") // +x, +phi
+    else if (thrusterCommand == "00000001") // +x, +phi
     {
         mThrustForce = Eigen::Vector3d(mThrusterForce, 0, mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "900000010") // +x, -phi
+    else if (thrusterCommand == "00000010") // +x, -phi
     {
         mThrustForce = Eigen::Vector3d(mThrusterForce, 0, -mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "900010000") // -x, +phi
+    else if (thrusterCommand == "00010000") // -x, +phi
     {
         mThrustForce = Eigen::Vector3d(-mThrusterForce, 0, mThrusterForce*mMomentArm);
     }
-    else if (thrusterCommand == "900100000") // -x, -phi
+    else if (thrusterCommand == "00100000") // -x, -phi
     {
         mThrustForce = Eigen::Vector3d(-mThrusterForce, 0, -mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "901000000") // +y, +phi
+    else if (thrusterCommand == "01000000") // +y, +phi
     {
         mThrustForce = Eigen::Vector3d(0, mThrusterForce, mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "910000000") // +y, -phi
+    else if (thrusterCommand == "10000000") // +y, -phi
     {
         mThrustForce = Eigen::Vector3d(0, mThrusterForce, -mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "900000100") //-y, +phi
+    else if (thrusterCommand == "00000100") //-y, +phi
     {
         mThrustForce = Eigen::Vector3d(0, -mThrusterForce, mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "900001000") //-y, -phi
+    else if (thrusterCommand == "00001000") //-y, -phi
     {
         mThrustForce = Eigen::Vector3d(0, -mThrusterForce, -mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "901000001") // +x, +y, +phi
+    else if (thrusterCommand == "01000001") // +x, +y, +phi
     {
         mThrustForce = Eigen::Vector3d(mThrusterForce, mThrusterForce, mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "900000101") // +x, -y, +phi
+    else if (thrusterCommand == "00000101") // +x, -y, +phi
     {
         mThrustForce = Eigen::Vector3d(mThrusterForce, -mThrusterForce, mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "901010000") // -x, +y, +phi
+    else if (thrusterCommand == "01010000") // -x, +y, +phi
     {
         mThrustForce = Eigen::Vector3d(-mThrusterForce, mThrusterForce, mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "900010100") // -x, -y, +phi
+    else if (thrusterCommand == "00010100") // -x, -y, +phi
     {
         mThrustForce = Eigen::Vector3d(-mThrusterForce, -mThrusterForce, mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "910000010") // +x, +y, -phi
+    else if (thrusterCommand == "10000010") // +x, +y, -phi
     {
         mThrustForce = Eigen::Vector3d(mThrusterForce, mThrusterForce, -mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "900001010") // +x, -y, -phi
+    else if (thrusterCommand == "00001010") // +x, -y, -phi
     {
         mThrustForce = Eigen::Vector3d(mThrusterForce, -mThrusterForce, -mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "910100000") // -x, +y, -phi
+    else if (thrusterCommand == "10100000") // -x, +y, -phi
     {
         mThrustForce = Eigen::Vector3d(-mThrusterForce, mThrusterForce, -mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "900101000") // -x, -y, -phi
+    else if (thrusterCommand == "00101000") // -x, -y, -phi
     {
         mThrustForce = Eigen::Vector3d(-mThrusterForce, -mThrusterForce, -mThrusterForce*mMomentArm);
     } 
-    else if (thrusterCommand == "900000000") // all off
+    else if (thrusterCommand == "00000000") // all off
     {
         mThrustForce = Eigen::Vector3d::Zero();
     }
