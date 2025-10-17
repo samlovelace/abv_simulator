@@ -2,6 +2,7 @@
 #include "abv_simulator/VehicleSimulator.h"
 #include "abv_simulator/RosTopicManager.h"
 #include "robot_idl/msg/abv_state.hpp"
+#include "robot_idl/msg/vec3.hpp"
 #include <string> 
 
 
@@ -46,26 +47,36 @@ void VehicleSimulator::update()
     mVehicleState = {mPose(0), mPose(1), mPose(2), mVelocity(0), mVelocity(1), mVelocity(2)};
 
     mTopicManager->publishMessage<robot_idl::msg::AbvState>("abv/sim/state", convertToIdl(mVehicleState)); 
-    
 }
 
 robot_idl::msg::AbvState VehicleSimulator::convertToIdl(VehicleState aState)
 {
-    robot_idl::msg::AbvVec3 position; 
-    robot_idl::msg::AbvVec3 velocity;
+    robot_idl::msg::Vec3 position; 
+    robot_idl::msg::Vec3 velocity;
 
     position.x = aState.x; 
     position.y = aState.y; 
-    position.yaw = aState.yaw; 
+    position.z = 0.0; 
 
     velocity.x = aState.vx; 
     velocity.y = aState.vy; 
-    velocity.yaw = aState.omega; 
+    velocity.z = 0.0; 
+
+    robot_idl::msg::Vec3 orientation; 
+    orientation.x = 0.0; 
+    orientation.y = 0.0; 
+    orientation.z = aState.yaw; 
+
+    robot_idl::msg::Vec3 ang_vel; 
+    ang_vel.x = 0.0; 
+    ang_vel.y = 0.0; 
+    ang_vel.z = aState.omega; 
 
     robot_idl::msg::AbvState state; 
-
     state.set__position(position); 
     state.set__velocity(velocity); 
+    state.set__orientation(orientation); 
+    state.set__ang_vel(ang_vel); 
 
     return state;  
 }
