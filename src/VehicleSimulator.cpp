@@ -8,8 +8,8 @@
 
 VehicleSimulator::VehicleSimulator(/* args */) : 
     mUdpServer(std::make_unique<UdpServer>(6969, std::bind(&VehicleSimulator::onRecieved, this, std::placeholders::_1))), 
-    mMass(12.7), mMOI(0.35), mThrusterForce(0.15), mMomentArm(0.1), mTimestep(0.05), mDamping(0.0005),
-    mPose(Eigen::Vector3d::Zero()), mVelocity(Eigen::Vector3d::Zero()), mThrustForce(Eigen::Vector3d::Zero()), 
+    mMass(12.7), mIzz(0.35), mThrusterForce(0.15), mMomentArm(0.1), mTimestep(0.05), mDamping(0.0005),
+    mVelocity(Eigen::Vector2d::Zero()), mThrustForce(Eigen::Vector3d::Zero()), 
     mTopicManager(std::make_unique<RosTopicManager>())
 { 
     
@@ -34,17 +34,22 @@ void VehicleSimulator::onRecieved(const std::string& message)
 void VehicleSimulator::update()
 {
     convertThrusterCommandToForce(getThrusterCommand()); 
+    Eigen::Vector3d thrustForceVec_Gl = convertBodyForceToGlobal(); 
+    Eigen::Vector2d Fg(thrustForceVec_Gl.x(), thrustForceVec_Gl.y());
+    double tau = thrustForceVec_Gl.z(); // torque about vertical axis 
+
+    // compute accelerations based on force/torque applied 
+    Eigen::Vector2d a = (1.0 / mMass) * Fg - Eigen::Vector2d(0.5*mDamping * mVelocity.x(), 0.5*mDamping * mVelocity.y()); // linear acceleration
+    double alpha = (tau / mIzz) - mDamping * mVehicleState.omega; // angular acceleration 
     
-    // Calculate the acceleration based on the force
-    Eigen::Vector3d acceleration = mThrustForce/mMass - mDamping* mVelocity/mMass;
+    // update velocity 
+    mVelocity += a * mTimestep;
+    mVehicleState.omega += alpha * mTimestep;
 
-    // Calculate the velocity based on the acceleration
-    mVelocity += acceleration * mTimestep; 
-
-    // Calculate the pose based on the velocity
-    mPose += mVelocity * mTimestep;
-
-    mVehicleState = {mPose(0), mPose(1), mPose(2), mVelocity(0), mVelocity(1), mVelocity(2)};
+    // update positions 
+    mVehicleState.x += mVelocity.x() * mTimestep;
+    mVehicleState.y += mVelocity.y() * mTimestep;
+    mVehicleState.yaw  = wrapPi(mVehicleState.yaw + mVehicleState.omega * mTimestep);
 
     mTopicManager->publishMessage<robot_idl::msg::AbvState>("abv/sim/state", convertToIdl(mVehicleState)); 
 }
@@ -79,6 +84,27 @@ robot_idl::msg::AbvState VehicleSimulator::convertToIdl(VehicleState aState)
     state.set__ang_vel(ang_vel); 
 
     return state;  
+}
+
+Eigen::Vector3d VehicleSimulator::convertBodyForceToGlobal()
+{
+    double yaw = mVehicleState.yaw; 
+
+    // rotation of abv relative to global 
+    Eigen::Matrix3d Rz;
+    Rz << cos(yaw), -sin(yaw), 0,
+          sin(yaw), cos(yaw),  0,
+             0,        0,      1;
+
+    // Transform the vector into the new frame
+    return Rz * mThrustForce;
+}
+
+inline double VehicleSimulator::wrapPi(double a)
+{
+    while(a <= -M_PI) a += 2.0*M_PI;
+    while(a >   M_PI) a -= 2.0*M_PI;
+    return a;
 }
 
 void VehicleSimulator::convertThrusterCommandToForce(const std::string& thrusterCommand)

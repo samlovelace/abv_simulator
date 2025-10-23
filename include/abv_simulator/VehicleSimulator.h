@@ -27,20 +27,21 @@ private:
     std::mutex mThrusterCommandMutex; 
 
     double mMass; 
-    double mMOI;
+    double mIzz; // moment of inertia of vehicle around vertical axis 
     double mThrusterForce; 
     double mMomentArm; 
     double mTimestep;
     double mDamping;
 
-    Eigen::Vector3d mPose; // x, y, yaw
-    Eigen::Vector3d mVelocity; // vx, vy, omega
-    Eigen::Vector3d mThrustForce; // fx, fy, 
+    Eigen::Vector2d mVelocity; // vx, vy
+    Eigen::Vector3d mThrustForce; // fx, fy, tz
 
     VehicleState mVehicleState; 
 
     void convertThrusterCommandToForce(const std::string& aCommand);
     robot_idl::msg::AbvState convertToIdl(VehicleState aState);
+    Eigen::Vector3d convertBodyForceToGlobal(); 
+    inline double wrapPi(double a);
 
     std::unique_ptr<RosTopicManager> mTopicManager; 
 };
