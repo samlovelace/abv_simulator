@@ -46,9 +46,12 @@ void VehicleSimulator::update()
     mVelocity += a * mTimestep;
     mVehicleState.omega += alpha * mTimestep;
 
+    mVehicleState.vx = mVelocity.x(); 
+    mVehicleState.vy = mVelocity.y(); 
+
     // update positions 
-    mVehicleState.x += mVelocity.x() * mTimestep;
-    mVehicleState.y += mVelocity.y() * mTimestep;
+    mVehicleState.x += mVehicleState.vx * mTimestep;
+    mVehicleState.y += mVehicleState.vy * mTimestep;
     mVehicleState.yaw  = wrapPi(mVehicleState.yaw + mVehicleState.omega * mTimestep);
 
     mTopicManager->publishMessage<robot_idl::msg::AbvState>("abv/sim/state", convertToIdl(mVehicleState)); 
