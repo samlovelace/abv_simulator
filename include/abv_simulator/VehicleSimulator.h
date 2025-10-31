@@ -43,6 +43,9 @@ private:
     Eigen::Vector3d convertBodyForceToGlobal(); 
     inline double wrapPi(double a);
 
+    void addSensorNoise(); 
+    void addProcessNoise(); 
+
     std::unique_ptr<RosTopicManager> mTopicManager; 
 };
 #endif //VEHICLESIMULATOR_H

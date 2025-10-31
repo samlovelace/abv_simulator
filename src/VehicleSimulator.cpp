@@ -4,7 +4,7 @@
 #include "robot_idl/msg/abv_state.hpp"
 #include "robot_idl/msg/vec3.hpp"
 #include <string> 
-
+#include <random>
 
 VehicleSimulator::VehicleSimulator(/* args */) : 
     mUdpServer(std::make_unique<UdpServer>(6969, std::bind(&VehicleSimulator::onRecieved, this, std::placeholders::_1))), 
@@ -54,8 +54,41 @@ void VehicleSimulator::update()
     mVehicleState.y += mVehicleState.vy * mTimestep;
     mVehicleState.yaw  = wrapPi(mVehicleState.yaw + mVehicleState.omega * mTimestep);
 
+    //addSensorNoise(); 
+    addProcessNoise(); 
+
     mTopicManager->publishMessage<robot_idl::msg::AbvState>("abv/sim/state", convertToIdl(mVehicleState)); 
 }
+
+void VehicleSimulator::addSensorNoise()
+{
+    const double stddev = 0.2; 
+    std::default_random_engine gen; 
+    std::normal_distribution<double> dist(0.0, stddev); 
+
+    double noise = dist(gen); 
+    mVehicleState.x += noise; 
+    mVehicleState.y += noise; 
+    mVehicleState.yaw += noise; 
+}
+
+void VehicleSimulator::addProcessNoise()
+{
+    const double linearNoiseStdDev = 0.001;
+    const double angularNoiseStdDev = 0.001;
+
+    static std::default_random_engine gen(std::random_device{}());
+    std::normal_distribution<double> linearNoise(0.0, linearNoiseStdDev);
+    std::normal_distribution<double> angularNoise(0.0, angularNoiseStdDev);
+
+    // Add noise to linear velocity
+    mVelocity.x() += linearNoise(gen);
+    mVelocity.y() += linearNoise(gen);
+
+    // Add noise to angular velocity
+    mVehicleState.omega += angularNoise(gen);
+}
+
 
 robot_idl::msg::AbvState VehicleSimulator::convertToIdl(VehicleState aState)
 {
