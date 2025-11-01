@@ -8,7 +8,7 @@
 
 VehicleSimulator::VehicleSimulator(/* args */) : 
     mUdpServer(std::make_unique<UdpServer>(6969, std::bind(&VehicleSimulator::onRecieved, this, std::placeholders::_1))), 
-    mMass(12.7), mIzz(0.35), mThrusterForce(0.15), mMomentArm(0.1), mTimestep(0.05), mDamping(0.0005),
+    mMass(12.7), mIzz(0.35), mThrusterForce(0.15), mMomentArm(0.1235), mTimestep(0.05), mDamping(0.0005),
     mVelocity(Eigen::Vector2d::Zero()), mThrustForce(Eigen::Vector3d::Zero()), 
     mTopicManager(std::make_unique<RosTopicManager>())
 { 
@@ -31,33 +31,38 @@ void VehicleSimulator::onRecieved(const std::string& message)
     setThrusterCommand(message);  
 }
 
-void VehicleSimulator::update()
+void VehicleSimulator::update(const double dt)
 {
-    convertThrusterCommandToForce(getThrusterCommand()); 
-    Eigen::Vector3d thrustForceVec_Gl = convertBodyForceToGlobal(); 
-    Eigen::Vector2d Fg(thrustForceVec_Gl.x(), thrustForceVec_Gl.y());
-    double tau = thrustForceVec_Gl.z(); // torque about vertical axis 
+    mTimestep = dt; 
 
-    // compute accelerations based on force/torque applied 
-    Eigen::Vector2d a = (1.0 / mMass) * Fg - Eigen::Vector2d(0.5*mDamping * mVelocity.x(), 0.5*mDamping * mVelocity.y()); // linear acceleration
-    double alpha = (tau / mIzz) - mDamping * mVehicleState.omega; // angular acceleration 
-    
-    // update velocity 
+    convertThrusterCommandToForce(getThrusterCommand());
+    mThrustForceCmd = mThrustForce; // rename for clarity
+
+    mCmdBuffer.push_front(mThrustForceCmd);
+    if (mCmdBuffer.size() > mDelaySteps)
+        mCmdBuffer.pop_back();
+    Eigen::Vector3d delayedCmd = mCmdBuffer.back();
+
+    mThrustForceReal += (delayedCmd - mThrustForceReal) * (mTimestep / mThrusterTau);
+
+    Eigen::Vector3d thrustForceVec_Gl = convertBodyForceToGlobal(mThrustForceReal);
+    Eigen::Vector2d Fg(thrustForceVec_Gl.x(), thrustForceVec_Gl.y());
+    double tau = thrustForceVec_Gl.z();
+
+    Eigen::Vector2d a = (1.0 / mMass) * Fg - mDamping * mVelocity;
+    double alpha = (tau / mIzz) - mDamping * mVehicleState.omega;
+
     mVelocity += a * mTimestep;
     mVehicleState.omega += alpha * mTimestep;
-
     mVehicleState.vx = mVelocity.x(); 
     mVehicleState.vy = mVelocity.y(); 
-
-    // update positions 
     mVehicleState.x += mVehicleState.vx * mTimestep;
     mVehicleState.y += mVehicleState.vy * mTimestep;
-    mVehicleState.yaw  = wrapPi(mVehicleState.yaw + mVehicleState.omega * mTimestep);
+    mVehicleState.yaw = wrapPi(mVehicleState.yaw + mVehicleState.omega * mTimestep);
 
-    //addSensorNoise(); 
-    addProcessNoise(); 
-
-    mTopicManager->publishMessage<robot_idl::msg::AbvState>("abv/sim/state", convertToIdl(mVehicleState)); 
+    addProcessNoise();
+    mTopicManager->publishMessage<robot_idl::msg::AbvState>(
+        "abv/sim/state", convertToIdl(mVehicleState));
 }
 
 void VehicleSimulator::addSensorNoise()
@@ -75,7 +80,7 @@ void VehicleSimulator::addSensorNoise()
 void VehicleSimulator::addProcessNoise()
 {
     const double linearNoiseStdDev = 0.001;
-    const double angularNoiseStdDev = 0.001;
+    const double angularNoiseStdDev = 0.005;
 
     static std::default_random_engine gen(std::random_device{}());
     std::normal_distribution<double> linearNoise(0.0, linearNoiseStdDev);
@@ -88,7 +93,6 @@ void VehicleSimulator::addProcessNoise()
     // Add noise to angular velocity
     mVehicleState.omega += angularNoise(gen);
 }
-
 
 robot_idl::msg::AbvState VehicleSimulator::convertToIdl(VehicleState aState)
 {
@@ -122,7 +126,7 @@ robot_idl::msg::AbvState VehicleSimulator::convertToIdl(VehicleState aState)
     return state;  
 }
 
-Eigen::Vector3d VehicleSimulator::convertBodyForceToGlobal()
+Eigen::Vector3d VehicleSimulator::convertBodyForceToGlobal(const Eigen::Vector3d& aThrustForce)
 {
     double yaw = mVehicleState.yaw; 
 
@@ -133,7 +137,7 @@ Eigen::Vector3d VehicleSimulator::convertBodyForceToGlobal()
              0,        0,      1;
 
     // Transform the vector into the new frame
-    return Rz * mThrustForce;
+    return Rz * aThrustForce;
 }
 
 inline double VehicleSimulator::wrapPi(double a)

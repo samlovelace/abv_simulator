@@ -2,7 +2,7 @@
 #include "abv_simulator/VehicleSimulator.h"
 #include <thread> 
 #include <memory>
-
+#include "abv_simulator/RateController.hpp"
 
 int main()
 {
@@ -10,12 +10,14 @@ int main()
     std::unique_ptr<VehicleSimulator> abv = std::make_unique<VehicleSimulator>(); 
 
     abv->listen(); 
-    printf("######################################################\n"); 
+    RateController rate(50); 
+    printf("######################################################\n");
 
     while(true)
     {
-        abv->update(); 
-        std::this_thread::sleep_for(std::chrono::milliseconds(50)); 
+        rate.start(); 
+        abv->update(rate.getDeltaTime());
+        rate.block(); 
     }
 
     rclcpp::shutdown(); 
